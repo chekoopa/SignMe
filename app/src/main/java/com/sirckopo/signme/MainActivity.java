@@ -70,7 +70,7 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-    public void sign(View v) {
+    private String getSignature() {
         try {
             PKCS8EncodedKeySpec eks = new PKCS8EncodedKeySpec(
                     Base64.decode(etPrivateKey.getText().toString(), Base64.DEFAULT));
@@ -81,19 +81,20 @@ public class MainActivity extends ActionBarActivity {
             sig.initSign(privateKey);
             sig.update(etMessage.getText().toString().getBytes());
 
-            etSignature.setText(Base64.encodeToString(sig.sign(), Base64.DEFAULT));
+            return Base64.encodeToString(sig.sign(), Base64.DEFAULT);
 
         } catch (NoSuchAlgorithmException | InvalidKeySpecException |
                 SignatureException | InvalidKeyException e) {
             e.printStackTrace();
+            return null;
         }
     }
 
-    public void verify(View v) {
-        //TODO: make it work (always true)
+    private boolean getVerify() {
         try {
+            String st = etPublicKey.getText().toString();
             X509EncodedKeySpec eks = new X509EncodedKeySpec(
-                    Base64.decode(etPublicKey.getText().toString(), Base64.DEFAULT));
+                    Base64.decode(st, Base64.DEFAULT));
             KeyFactory kf = KeyFactory.getInstance("RSA");
             PublicKey publicKey = kf.generatePublic(eks);
 
@@ -101,16 +102,34 @@ public class MainActivity extends ActionBarActivity {
             sig.initVerify(publicKey);
             sig.update(etMessage.getText().toString().getBytes());
 
-            boolean isLegit = sig.verify(Base64.decode(etSignature.getText().toString(),
-                    Base64.DEFAULT));
-            if (isLegit)
-                tvResult.setText("True legit message!");
-            else
-                tvResult.setText("Wrong signature!");
+            return sig.verify(Base64.decode(etSignature.getText().toString(), Base64.DEFAULT));
 
         } catch (NoSuchAlgorithmException | InvalidKeySpecException |
                 SignatureException | InvalidKeyException e) {
             e.printStackTrace();
+            return false;
+        }
+    }
+
+    public void sign(View v) {
+        // verification can be always successful when user hacks into the OS, patching the Java VM
+        // so Signature.verify ALWAYS returns true (even without an existing signature!)
+
+        etSignature.setText(getSignature());
+        String message = etMessage.getText().toString();
+        etMessage.setText(message == "" ? "weegee" : "");
+        if (getVerify()) {
+            tvResult.setText("Derp, your system is freaking hacked.");
+            butVerify.setEnabled(false);
+        }
+        etMessage.setText(message);
+    }
+
+    public void verify(View v) {
+        if (getVerify()) {
+            tvResult.setText("True legit message!");
+        } else {
+            tvResult.setText("Wrong signature!");
         }
     }
 
